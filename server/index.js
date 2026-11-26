@@ -1,119 +1,293 @@
+// Load environment variables FIRST
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const mongoose = require("mongoose");
+const helmet = require("helmet");
 
+// Database configuration
 const connectDB = require("./config/db");
 
+// Models
+const User = require("./models/User");
 const Company = require("./models/Company");
 const Job = require("./models/Job");
+const Application = require("./models/Application");
+const SavedJob = require("./models/SavedJob");
+const BehaviorEvent = require("./models/BehaviorEvent");
 const Article = require("./models/Article");
-// Load environment variables
-dotenv.config();
 
-// Initialize Express
+// Routes
+const authRoutes = require("./routes/authRoutes");
+const jobRoutes = require("./routes/jobRoutes");
+const companyRoutes = require("./routes/companyRoutes");
+const profileRoutes = require("./routes/profileRoutes");
+const savedJobRoutes = require("./routes/savedJobRoutes");
+const applicationRoutes = require("./routes/applicationRoutes");
+const articleRoutes = require("./routes/articleRoutes");
+const behaviorRoutes = require("./routes/behaviorRoutes");
+
+// Error handling
+const {
+  notFound,
+  errorHandler,
+} = require("./middleware/errorHandler");
+
+const {
+  asyncHandler,
+} = require("./utils/api");
+
 const app = express();
 
-// Middleware
+// Security headers
+app.use(helmet());
+
+app.disable("x-powered-by");
+
+// CORS configuration
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin:
+      process.env.CLIENT_URL ||
+      "http://localhost:5173",
+
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ],
+
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+    ],
   })
 );
 
-app.use(express.json());
+// JSON and form parsing
+app.use(
+  express.json({
+    limit: "1mb",
+  })
+);
+
+app.use(
+  express.urlencoded({
+    extended: false,
+    limit: "1mb",
+  })
+);
+
+// Avoid caching private API responses
+app.use("/api", (req, res, next) => {
+  res.set("Cache-Control", "no-store");
+
+  next();
+});
 
 // Root route
 app.get("/", (req, res) => {
   res.json({
     message: "Welcome to CareerLens API",
     status: "success",
+    version: "1.0.0",
   });
 });
 
-// Health check route
+// Phase 1 health-check API
 app.get("/api/health", (req, res) => {
   const connected =
     mongoose.connection.readyState === 1;
 
-  res.status(connected ? 200 : 503).json({
+  res.status(
+    connected ? 200 : 503
+  ).json({
     success: connected,
+
     application: "CareerLens",
+
     server: "Running",
+
     database: connected
       ? "Connected"
       : "Disconnected",
+
     timestamp: new Date().toISOString(),
   });
 });
 
-// Database statistics
-app.get("/api/stats", async (req, res) => {
-  try {
-    const [
-      companies,
-      jobs,
-      articles,
-      categories,
-    ] = await Promise.all([
-      Company.countDocuments({
-        isDemo: true,
-      }),
+// Phase 2 database-statistics API
+app.get(
+  "/api/stats",
 
-      Job.countDocuments({
+  asyncHandler(
+    async (req, res) => {
+      const activeFilter = {
         status: "Active",
-      }),
 
-      Article.countDocuments({
-        status: "Published",
-      }),
+        deadline: {
+          $gte: new Date(),
+        },
+      };
 
-      Job.distinct("category", {
-        status: "Active",
-      }),
-    ]);
-
-    res.status(200).json({
-      success: true,
-
-      data: {
+      const [
         companies,
         jobs,
         articles,
-        categories: categories.length,
-      },
-    });
-  } catch (error) {
-    console.error(error);
+        categories,
+      ] = await Promise.all([
+        Company.countDocuments({
+          isDemo: true,
+        }),
 
-    res.status(500).json({
-      success: false,
-      message:
-        "Unable to retrieve database statistics",
-    });
-  }
-});
+        Job.countDocuments(
+          activeFilter
+        ),
+
+        Article.countDocuments({
+          status: "Published",
+        }),
+
+        Job.distinct(
+          "category",
+          activeFilter
+        ),
+      ]);
+
+      return res.json({
+        success: true,
+
+        data: {
+          companies,
+          jobs,
+          articles,
+
+          categories:
+            categories.length,
+        },
+      });
+    }
+  )
+);
+
+// Register all API routes
+app.use("/api/auth", authRoutes);
+
+app.use("/api/jobs", jobRoutes);
+
+app.use(
+  "/api/companies",
+  companyRoutes
+);
+
+app.use(
+  "/api/profile",
+  profileRoutes
+);
+
+app.use(
+  "/api/saved-jobs",
+  savedJobRoutes
+);
+
+app.use(
+  "/api/applications",
+  applicationRoutes
+);
+
+app.use(
+  "/api/articles",
+  articleRoutes
+);
+
+app.use(
+  "/api/behavior",
+  behaviorRoutes
+);
 
 // Handle unknown routes
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "API route not found",
-  });
-});
+app.use(notFound);
 
-// Server port
+// Handle errors
+app.use(errorHandler);
+
+// Server configuration
 const PORT = process.env.PORT || 5000;
 
-// Connect database and start server
+// Start the server
 const startServer = async () => {
-  await connectDB();
+  try {
+    if (!process.env.MONGO_URI) {
+      throw new Error(
+        "MONGO_URI is missing from .env"
+      );
+    }
 
-  app.listen(PORT, () => {
-    console.log(
-      `CareerLens API running on http://localhost:${PORT}`
+    if (
+      !process.env.JWT_SECRET ||
+      process.env.JWT_SECRET.length < 32 ||
+      process.env.JWT_SECRET.includes(
+        "replace_with"
+      ) ||
+      process.env.JWT_SECRET.includes(
+        "PASTE_YOUR"
+      )
+    ) {
+      throw new Error(
+        "Configure a secure JWT_SECRET in .env"
+      );
+    }
+
+    await connectDB();
+
+    // Ensure all database indexes exist
+    await Promise.all([
+      User.init(),
+      Company.init(),
+      Job.init(),
+      Application.init(),
+      SavedJob.init(),
+      BehaviorEvent.init(),
+      Article.init(),
+    ]);
+
+    // Local development server
+    app.listen(
+      PORT,
+      "127.0.0.1",
+
+      () => {
+        console.log(
+          `CareerLens API running on http://localhost:${PORT}`
+        );
+
+        console.log(
+          "Authentication: Enabled"
+        );
+
+        console.log(
+          "Database models: Initialized"
+        );
+
+        console.log(
+          "REST API modules: Ready"
+        );
+      }
     );
-  });
+  } catch (error) {
+    console.error(
+      "Server startup failed:",
+      error.message
+    );
+
+    await mongoose.disconnect();
+
+    process.exitCode = 1;
+  }
 };
 
 startServer();
