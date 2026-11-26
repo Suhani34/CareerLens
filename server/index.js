@@ -5,6 +5,9 @@ const mongoose = require("mongoose");
 
 const connectDB = require("./config/db");
 
+const Company = require("./models/Company");
+const Job = require("./models/Job");
+const Article = require("./models/Article");
 // Load environment variables
 dotenv.config();
 
@@ -42,6 +45,53 @@ app.get("/api/health", (req, res) => {
       : "Disconnected",
     timestamp: new Date().toISOString(),
   });
+});
+
+// Database statistics
+app.get("/api/stats", async (req, res) => {
+  try {
+    const [
+      companies,
+      jobs,
+      articles,
+      categories,
+    ] = await Promise.all([
+      Company.countDocuments({
+        isDemo: true,
+      }),
+
+      Job.countDocuments({
+        status: "Active",
+      }),
+
+      Article.countDocuments({
+        status: "Published",
+      }),
+
+      Job.distinct("category", {
+        status: "Active",
+      }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+
+      data: {
+        companies,
+        jobs,
+        articles,
+        categories: categories.length,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Unable to retrieve database statistics",
+    });
+  }
 });
 
 // Handle unknown routes

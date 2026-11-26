@@ -16,7 +16,8 @@ function App() {
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
+  const [stats, setStats] = useState(null);
+  const [statsError, setStatsError] = useState("");
   const checkHealth = async () => {
     setLoading(true);
     setError("");
@@ -52,7 +53,28 @@ function App() {
 
     return () => controller.abort();
   }, []);
+  useEffect(() => {
+    const controller = new AbortController();
 
+    api
+      .get("/stats", {
+        signal: controller.signal,
+      })
+      .then((response) => {
+        setStats(response.data.data);
+        setStatsError("");
+      })
+      .catch((err) => {
+        if (err.code !== "ERR_CANCELED") {
+          setStatsError(
+            "Unable to load database statistics."
+          );
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
+  
   const systems = [
     {
       name: "React Frontend",
@@ -175,10 +197,62 @@ function App() {
           </div>
         )}
 
-        <footer>
-          CareerLens · MERN Stack Project · Development
-          Phase 1
-        </footer>
+        {statsError && (
+  <div className="error-message">
+    {statsError}
+  </div>
+)}
+
+{stats && (
+  <section className="database-section">
+    <div className="database-heading">
+      <span className="eyebrow">
+        LIVE DATABASE
+      </span>
+
+      <h2>CareerLens Data Overview</h2>
+
+      <p>
+        Real-time database statistics retrieved
+        through the Express REST API.
+      </p>
+    </div>
+
+    <div className="database-grid">
+      {[
+        {
+          label: "Job Opportunities",
+          value: stats.jobs,
+        },
+        {
+          label: "Companies",
+          value: stats.companies,
+        },
+        {
+          label: "Career Categories",
+          value: stats.categories,
+        },
+        {
+          label: "Career Articles",
+          value: stats.articles,
+        },
+      ].map((item) => (
+        <article
+          className="database-card"
+          key={item.label}
+        >
+          <h3>{item.value}</h3>
+          <p>{item.label}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+)}
+
+<footer>
+  CareerLens · MERN Stack Project · Development
+  Phase 2
+</footer>
       </section>
     </main>
   );

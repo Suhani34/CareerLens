@@ -212,3 +212,78 @@ footer {
     padding: 30px 0;
   }
 }
+.database-section {
+  margin-top: 35px;
+  padding: 30px;
+  background: #ffffff;
+  border: 1px solid #e7e8f0;
+  border-radius: 20px;
+
+  box-shadow:
+    0 8px 28px rgba(29, 38, 74, 0.04);
+}
+
+.database-heading {
+  margin-bottom: 25px;
+}
+
+.database-heading h2 {
+  font-size: 25px;
+  letter-spacing: -0.7px;
+  margin-top: 8px;
+  color: #182039;
+}
+
+.database-heading p {
+  color: #778097;
+  font-size: 14px;
+  line-height: 1.7;
+  margin-top: 8px;
+}
+
+.database-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+}
+
+.database-card {
+  padding: 24px 18px;
+  border: 1px solid #e9e5ff;
+  border-radius: 14px;
+  background: #f7f5ff;
+  text-align: center;
+
+  transition:
+    transform 0.2s,
+    background 0.2s;
+}
+
+.database-card:hover {
+  transform: translateY(-4px);
+  background: #f0edff;
+}
+
+.database-card h3 {
+  font-size: 36px;
+  color: #6254d9;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  margin-bottom: 8px;
+}
+
+.database-card p {
+  font-size: 13px;
+  color: #697189;
+  font-weight: 500;
+}
+
+@media (max-width: 750px) {
+  .database-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .database-section {
+    padding: 20px;
+  }
+}
