@@ -8,7 +8,6 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// Attach JWT to outgoing requests
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(
@@ -26,29 +25,32 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Handle authentication failures
 api.interceptors.response.use(
   (response) => response,
 
   (error) => {
     const status = error.response?.status;
 
-    const requestUrl =
-      error.config?.url || "";
+    const url = error.config?.url || "";
 
-    const authenticationRequest =
-      requestUrl.includes("/auth/login") ||
-      requestUrl.includes("/auth/register");
+    const isAuthRequest =
+      url.includes("/auth/login") ||
+      url.includes("/auth/register");
 
-    const storedToken =
+    const currentToken =
       localStorage.getItem(
         "careerlens_token"
       );
 
+    const requestAuthorization =
+      error.config?.headers?.Authorization;
+
     if (
       status === 401 &&
-      storedToken &&
-      !authenticationRequest
+      currentToken &&
+      !isAuthRequest &&
+      requestAuthorization ===
+        `Bearer ${currentToken}`
     ) {
       localStorage.removeItem(
         "careerlens_token"

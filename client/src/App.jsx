@@ -1,261 +1,140 @@
-import { useEffect, useState } from "react";
 import {
-  ScanEye,
-  CheckCircle2,
-  Server,
-  Database,
-  Monitor,
-  RefreshCw,
-  AlertCircle,
-} from "lucide-react";
+  Routes,
+  Route,
+} from "react-router-dom";
 
-import api from "./services/api";
+import MainLayout from "./components/layout/MainLayout";
+import AuthLayout from "./components/layout/AuthLayout";
+import ScrollToTop from "./components/layout/ScrollToTop";
+
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import GuestRoute from "./components/auth/GuestRoute";
+
+// Authentication pages
+import LoginPage from "./pages/auth/LoginPage";
+import RegisterPage from "./pages/auth/RegisterPage";
+
+// Public pages
+import HomePage from "./pages/HomePage";
+import JobsPage from "./pages/JobsPage";
+import JobDetailsPage from "./pages/JobDetailsPage";
+import CompaniesPage from "./pages/CompaniesPage";
+import CompanyProfilePage from "./pages/CompanyProfilePage";
+import AboutPage from "./pages/AboutPage";
+import BlogPage from "./pages/BlogPage";
+import BlogDetailsPage from "./pages/BlogDetailsPage";
+
+// Protected pages
+import CandidateProfilePage from "./pages/CandidateProfilePage";
+import SavedJobsPage from "./pages/SavedJobsPage";
+import ApplicationsPage from "./pages/ApplicationsPage";
+import ApplyJobPage from "./pages/ApplyJobPage";
+import AIDashboardPage from "./pages/AIDashboardPage";
+
+// Error page
+import NotFoundPage from "./pages/NotFoundPage";
+
 import "./App.css";
 
-function App() {
-  const [health, setHealth] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [stats, setStats] = useState(null);
-  const [statsError, setStatsError] = useState("");
-  const checkHealth = async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await api.get("/health");
-      setHealth(response.data);
-    } catch {
-      setHealth(null);
-      setError("Unable to connect to CareerLens API.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    api
-      .get("/health", {
-        signal: controller.signal,
-      })
-      .then((response) => {
-        setHealth(response.data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (err.code !== "ERR_CANCELED") {
-          setError("Unable to connect to CareerLens API.");
-          setLoading(false);
-        }
-      });
-
-    return () => controller.abort();
-  }, []);
-  useEffect(() => {
-    const controller = new AbortController();
-
-    api
-      .get("/stats", {
-        signal: controller.signal,
-      })
-      .then((response) => {
-        setStats(response.data.data);
-        setStatsError("");
-      })
-      .catch((err) => {
-        if (err.code !== "ERR_CANCELED") {
-          setStatsError(
-            "Unable to load database statistics."
-          );
-        }
-      });
-
-    return () => controller.abort();
-  }, []);
-  
-  const systems = [
-    {
-      name: "React Frontend",
-      icon: Monitor,
-      connected: true,
-      description: "Vite + React",
-    },
-    {
-      name: "Express Backend",
-      icon: Server,
-      connected: health?.server === "Running",
-      description: "Node.js REST API",
-    },
-    {
-      name: "MongoDB Database",
-      icon: Database,
-      connected: health?.database === "Connected",
-      description: "MongoDB + Mongoose",
-    },
-  ];
-
-  const allConnected = systems.every(
-    (system) => system.connected
-  );
-
+export default function App() {
   return (
-    <main className="status-page">
-      <section className="status-container">
-        <div className="brand">
-          <ScanEye size={36} />
-          <span>CareerLens</span>
-        </div>
+    <>
+      <ScrollToTop />
 
-        <div className="intro">
-          <span className="eyebrow">
-            CAREER INTELLIGENCE PLATFORM
-          </span>
+      <Routes>
+        {/* Main website layout */}
+        <Route element={<MainLayout />}>
+          {/* Public pages */}
+          <Route
+            index
+            element={<HomePage />}
+          />
 
-          <h1>Your future starts here.</h1>
+          <Route
+            path="jobs"
+            element={<JobsPage />}
+          />
 
-          <p>
-            AI-powered job discovery and personalized
-            career recommendations.
-          </p>
-        </div>
+          <Route
+            path="jobs/:slug"
+            element={<JobDetailsPage />}
+          />
 
-        <div className="status-heading">
-          <h2>System Status</h2>
+          <Route
+            path="companies"
+            element={<CompaniesPage />}
+          />
 
-          <button
-            className="refresh-button"
-            onClick={checkHealth}
-            disabled={loading}
-          >
-            <RefreshCw size={17} />
-            {loading ? "Checking..." : "Refresh"}
-          </button>
-        </div>
+          <Route
+            path="companies/:slug"
+            element={<CompanyProfilePage />}
+          />
 
-        <div className="system-grid">
-          {systems.map((system) => {
-            const Icon = system.icon;
+          <Route
+            path="about"
+            element={<AboutPage />}
+          />
 
-            return (
-              <article
-                className="system-card"
-                key={system.name}
-              >
-                <Icon
-                  className="system-icon"
-                  size={28}
-                />
+          <Route
+            path="blog"
+            element={<BlogPage />}
+          />
 
-                <h3>{system.name}</h3>
-                <p>{system.description}</p>
+          <Route
+            path="blog/:slug"
+            element={<BlogDetailsPage />}
+          />
 
-                <div
-                  className={
-                    system.connected
-                      ? "status online"
-                      : "status offline"
-                  }
-                >
-                  {system.connected ? (
-                    <CheckCircle2 size={16} />
-                  ) : (
-                    <AlertCircle size={16} />
-                  )}
+          {/* Authenticated candidate pages */}
+          <Route element={<ProtectedRoute />}>
+            <Route
+              path="profile"
+              element={<CandidateProfilePage />}
+            />
 
-                  {system.connected
-                    ? "Connected"
-                    : loading
-                    ? "Checking..."
-                    : "Disconnected"}
-                </div>
-              </article>
-            );
-          })}
-        </div>
+            <Route
+              path="saved-jobs"
+              element={<SavedJobsPage />}
+            />
 
-        {error && (
-          <div className="error-message">
-            <AlertCircle size={20} />
-            {error}
-          </div>
-        )}
+            <Route
+              path="applications"
+              element={<ApplicationsPage />}
+            />
 
-        {allConnected && !loading && (
-          <div className="success-message">
-            <CheckCircle2 size={22} />
+            <Route
+              path="apply/:jobId"
+              element={<ApplyJobPage />}
+            />
 
-            <div>
-              <strong>All systems operational</strong>
+            <Route
+              path="ai-dashboard"
+              element={<AIDashboardPage />}
+            />
+          </Route>
 
-              <p>
-                Frontend, backend and database are
-                communicating successfully.
-              </p>
-            </div>
-          </div>
-        )}
+          {/* Invalid website routes */}
+          <Route
+            path="*"
+            element={<NotFoundPage />}
+          />
+        </Route>
 
-        {statsError && (
-  <div className="error-message">
-    {statsError}
-  </div>
-)}
+        {/* Authentication layout */}
+        <Route element={<GuestRoute />}>
+          <Route element={<AuthLayout />}>
+            <Route
+              path="login"
+              element={<LoginPage />}
+            />
 
-{stats && (
-  <section className="database-section">
-    <div className="database-heading">
-      <span className="eyebrow">
-        LIVE DATABASE
-      </span>
-
-      <h2>CareerLens Data Overview</h2>
-
-      <p>
-        Real-time database statistics retrieved
-        through the Express REST API.
-      </p>
-    </div>
-
-    <div className="database-grid">
-      {[
-        {
-          label: "Job Opportunities",
-          value: stats.jobs,
-        },
-        {
-          label: "Companies",
-          value: stats.companies,
-        },
-        {
-          label: "Career Categories",
-          value: stats.categories,
-        },
-        {
-          label: "Career Articles",
-          value: stats.articles,
-        },
-      ].map((item) => (
-        <article
-          className="database-card"
-          key={item.label}
-        >
-          <h3>{item.value}</h3>
-          <p>{item.label}</p>
-        </article>
-      ))}
-    </div>
-  </section>
-)}
-
-<footer>
-  CareerLens · MERN Stack Project · Development
-  Phase 2
-</footer>
-      </section>
-    </main>
+            <Route
+              path="register"
+              element={<RegisterPage />}
+            />
+          </Route>
+        </Route>
+      </Routes>
+    </>
   );
 }
-
-export default App;
